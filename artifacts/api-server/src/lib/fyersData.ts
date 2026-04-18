@@ -39,7 +39,7 @@ export async function getHistoricalData(
   return fyersGet(`${FYERS_API_BASE}/history`, token, {
     symbol,
     resolution,
-    date_format: "1",
+    date_format: "0",
     range_from: String(dateFrom),
     range_to: String(dateTo),
     cont_flag: "1",

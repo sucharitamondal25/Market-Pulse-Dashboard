@@ -166,22 +166,26 @@ const INDEX_LABEL: Record<string, string> = {
 };
 
 async function getCachedOHLCV(token: string, symbol: string, resolution: string, daysBack: number): Promise<number[][]> {
-  const now = Math.floor(Date.now() / 1000);
-  const wantFrom = now - daysBack * 86400;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const wantFrom = nowSec - daysBack * 86400;
   const latestCached = ohlcvLatestTs(symbol, resolution);
-  const todayStart = Math.floor(Date.now() / 86400000) * 86400;
+  const twoDaysAgo = nowSec - 2 * 86400;
 
-  if (!latestCached || latestCached < todayStart - 86400) {
-    const fetchFrom = latestCached ? latestCached : wantFrom;
-    const raw = await getHistoricalData(token, symbol, resolution, fetchFrom, now);
-    const candles: Array<[number, number, number, number, number, number]> = (raw?.candles ?? []).map(
-      (c: any[]) => [c[0], c[1], c[2], c[3], c[4], c[5]] as [number, number, number, number, number, number]
-    );
-    if (candles.length > 0) {
-      ohlcvUpsert(symbol, resolution, candles);
+  if (!latestCached || latestCached < twoDaysAgo) {
+    const fetchFrom = latestCached ? latestCached - 86400 : wantFrom;
+    try {
+      const raw = await getHistoricalData(token, symbol, resolution, fetchFrom, nowSec);
+      const candles: Array<[number, number, number, number, number, number]> = (raw?.candles ?? []).map(
+        (c: any[]) => [Number(c[0]), Number(c[1]), Number(c[2]), Number(c[3]), Number(c[4]), Number(c[5])] as [number, number, number, number, number, number]
+      );
+      if (candles.length > 0) {
+        ohlcvUpsert(symbol, resolution, candles);
+      }
+    } catch (e) {
+      console.error("OHLCV fetch error:", e);
     }
   }
-  return ohlcvGet(symbol, resolution, wantFrom, now) as any[];
+  return ohlcvGet(symbol, resolution, wantFrom, nowSec) as any[];
 }
 
 export async function computeDashboard(token: string): Promise<DashboardData> {
