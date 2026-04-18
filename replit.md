@@ -16,6 +16,14 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Artifacts
+
+- **india-market-dashboard** — React + Vite dark-themed sentiment dashboard at `/`
+  - Mock data fallback when Fyers is not connected
+  - Fyers OAuth login via `/api/fyers/auth` → `/api/fyers/callback`
+  - Live endpoints: `/api/fyers/indices`, `/api/fyers/quotes`, `/api/fyers/positions`, `/api/fyers/funds`
+  - Secrets required: `FYERS_APP_ID`, `FYERS_SECRET_KEY`
+
 ## Key Commands
 
 - `pnpm run typecheck` — full typecheck across all packages

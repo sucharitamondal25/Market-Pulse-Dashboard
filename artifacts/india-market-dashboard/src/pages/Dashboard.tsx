@@ -11,7 +11,8 @@ import { SectorPerformance } from "@/components/SectorPerformance";
 import { ScoringWeights } from "@/components/ScoringWeights";
 import { TopStocks } from "@/components/TopStocks";
 import { AlertsFeed } from "@/components/AlertsFeed";
-import { MiniScoreBar } from "@/components/MiniScoreBar";
+import { FyersAuthBanner } from "@/components/FyersAuthBanner";
+import { useFyersAuth, useLiveIndices } from "@/hooks/useFyers";
 
 const scores = {
   volatility: 78,
@@ -23,12 +24,32 @@ const scores = {
 };
 
 export default function Dashboard() {
+  const { authenticated, login } = useFyersAuth();
+  const { data: indicesData } = useLiveIndices();
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(220,13%,9%)", fontFamily: "'Inter', monospace" }}>
-      <Header />
-      <TickerBar />
+      <Header authenticated={authenticated} onLogin={login} />
+      <TickerBar liveData={indicesData} />
 
       <main className="flex-1 p-3 flex flex-col gap-3 overflow-auto">
+        {authenticated === false && (
+          <FyersAuthBanner onLogin={login} />
+        )}
+        {authenticated === true && (
+          <div
+            className="flex items-center gap-2 px-4 py-2 text-[11px] font-mono rounded"
+            style={{
+              background: "rgba(0,230,118,0.06)",
+              border: "1px solid rgba(0,230,118,0.2)",
+              color: "#00e676",
+            }}
+          >
+            <div className="w-2 h-2 rounded-full bg-[#00e676] live-dot" />
+            Fyers API connected — showing live market data (refreshes every 15s)
+          </div>
+        )}
+
         <DecisionPanel />
 
         <div className="grid grid-cols-5 gap-2">
@@ -44,7 +65,7 @@ export default function Dashboard() {
             <ExecutionWindow score={scores.execution} />
           </div>
           <div className="col-span-4">
-            <SectorPerformance />
+            <SectorPerformance liveData={indicesData} />
           </div>
           <div className="col-span-3">
             <ScoringWeights />

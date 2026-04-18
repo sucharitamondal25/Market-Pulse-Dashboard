@@ -1,6 +1,11 @@
 import { useState, useEffect } from "react";
 
-export function Header() {
+interface HeaderProps {
+  authenticated?: boolean | null;
+  onLogin?: () => void;
+}
+
+export function Header({ authenticated, onLogin }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [isMarketOpen, setIsMarketOpen] = useState(false);
 

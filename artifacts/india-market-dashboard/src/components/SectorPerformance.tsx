@@ -1,7 +1,33 @@
 import { sectorPerformance } from "@/data/marketData";
 
-export function SectorPerformance() {
-  const max = Math.max(...sectorPerformance.map(s => Math.abs(s.change)));
+interface SectorPerformanceProps {
+  liveData?: any;
+}
+
+function parseLiveSectors(liveData: any): typeof sectorPerformance | null {
+  if (!liveData?.d) return null;
+  const symbolMap: Record<string, string> = {
+    "NSE:NIFTYIT-INDEX": "IT",
+    "NSE:NIFTYAUTO-INDEX": "Auto",
+    "NSE:NIFTYREALTY-INDEX": "Realty",
+    "NSE:NIFTYFINSERVICE-INDEX": "Fin Services",
+    "NSE:NIFTYFMCG-INDEX": "FMCG",
+    "NSE:NIFTYPHARMA-INDEX": "Pharma",
+    "NSE:NIFTYMETAL-INDEX": "Metals",
+  };
+  const result: typeof sectorPerformance = [];
+  for (const item of liveData.d) {
+    const name = symbolMap[item.n];
+    if (name && item.v?.chp !== undefined) {
+      result.push({ name, change: parseFloat(item.v.chp.toFixed(2)), strength: item.v.chp >= 1 ? "Strong" : item.v.chp >= 0 ? "Weak" : "Bearish" });
+    }
+  }
+  return result.length >= 3 ? result.sort((a, b) => b.change - a.change) : null;
+}
+
+export function SectorPerformance({ liveData }: SectorPerformanceProps) {
+  const sectors = parseLiveSectors(liveData) ?? sectorPerformance;
+  const max = Math.max(...sectors.map(s => Math.abs(s.change)));
 
   return (
     <div className="card-dark rounded p-3 flex flex-col gap-2">
@@ -10,7 +36,7 @@ export function SectorPerformance() {
         <span className="section-header">Sector Performance</span>
       </div>
       <div className="flex flex-col gap-1.5">
-        {sectorPerformance.map((sector) => {
+        {sectors.map((sector) => {
           const pct = (Math.abs(sector.change) / max) * 100;
           const isPos = sector.change >= 0;
           return (
