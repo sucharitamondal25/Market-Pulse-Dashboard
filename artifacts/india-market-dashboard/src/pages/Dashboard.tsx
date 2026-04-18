@@ -12,31 +12,22 @@ import { ScoringWeights } from "@/components/ScoringWeights";
 import { TopStocks } from "@/components/TopStocks";
 import { AlertsFeed } from "@/components/AlertsFeed";
 import { FyersAuthBanner } from "@/components/FyersAuthBanner";
-import { useFyersAuth, useLiveIndices } from "@/hooks/useFyers";
-
-const scores = {
-  volatility: 78,
-  trend: 88,
-  breadth: 65,
-  momentum: 72,
-  macro: 58,
-  execution: 76,
-};
+import { useFyersAuth, useDashboard } from "@/hooks/useDashboard";
 
 export default function Dashboard() {
   const { authenticated, login } = useFyersAuth();
-  const { data: indicesData } = useLiveIndices();
+  const { data, loading, lastUpdated } = useDashboard(authenticated);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(220,13%,9%)", fontFamily: "'Inter', monospace" }}>
-      <Header authenticated={authenticated} onLogin={login} />
-      <TickerBar liveData={indicesData} />
+      <Header authenticated={authenticated} onLogin={login} lastUpdated={lastUpdated} loading={loading} />
+      <TickerBar ticker={data?.ticker} />
 
       <main className="flex-1 p-3 flex flex-col gap-3 overflow-auto">
         {authenticated === false && (
           <FyersAuthBanner onLogin={login} />
         )}
-        {authenticated === true && (
+        {authenticated === true && data && (
           <div
             className="flex items-center gap-2 px-4 py-2 text-[11px] font-mono rounded"
             style={{
@@ -46,32 +37,37 @@ export default function Dashboard() {
             }}
           >
             <div className="w-2 h-2 rounded-full bg-[#00e676] live-dot" />
-            Fyers API connected — showing live market data (refreshes every 15s)
+            Live Fyers data — auto-refreshes every 30s
+            {lastUpdated && (
+              <span className="ml-2 text-muted-foreground">
+                Last update: {lastUpdated.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", second: "2-digit" })} IST
+              </span>
+            )}
           </div>
         )}
 
-        <DecisionPanel />
+        <DecisionPanel decision={data?.decision} scores={data?.scores} />
 
         <div className="grid grid-cols-5 gap-2">
-          <VolatilityCard score={scores.volatility} />
-          <TrendCard score={scores.trend} />
-          <BreadthCard score={scores.breadth} />
-          <MomentumCard score={scores.momentum} />
-          <MacroCard score={scores.macro} />
+          <VolatilityCard data={data?.volatility} />
+          <TrendCard data={data?.trend} />
+          <BreadthCard data={data?.breadth} />
+          <MomentumCard data={data?.momentum} />
+          <MacroCard data={data?.macro} />
         </div>
 
         <div className="grid grid-cols-12 gap-2">
           <div className="col-span-3">
-            <ExecutionWindow score={scores.execution} />
+            <ExecutionWindow scores={data?.scores} />
           </div>
           <div className="col-span-4">
-            <SectorPerformance liveData={indicesData} />
+            <SectorPerformance sectors={data?.sectors} />
           </div>
           <div className="col-span-3">
-            <ScoringWeights />
+            <ScoringWeights scores={data?.scores} decision={data?.decision} />
           </div>
           <div className="col-span-2 flex flex-col gap-2">
-            <TopStocks />
+            <TopStocks stocks={data?.topStocks} />
           </div>
         </div>
 
@@ -80,7 +76,7 @@ export default function Dashboard() {
             <AlertsFeed />
           </div>
           <div className="col-span-4">
-            <MarketQuickStats />
+            <MarketQuickStats data={data} />
           </div>
         </div>
       </main>
@@ -88,16 +84,21 @@ export default function Dashboard() {
   );
 }
 
-function MarketQuickStats() {
+function MarketQuickStats({ data }: { data: any }) {
+  const niftyTicker = data?.ticker?.find((t: any) => t.symbol === "NIFTY 50");
+  const vixTicker = data?.ticker?.find((t: any) => t.symbol === "INDIA VIX");
+  const bankniftyTicker = data?.ticker?.find((t: any) => t.symbol === "BANKNIFTY");
+  const midcapTicker = data?.ticker?.find((t: any) => t.symbol === "NIFTY MIDCAP");
+
   const stats = [
-    { label: "FII Net (Today)", value: "+₹2,842 Cr", up: true },
-    { label: "DII Net (Today)", value: "+₹1,124 Cr", up: true },
-    { label: "Advance/Decline", value: "1,847 / 598", up: true },
-    { label: "New 52W Highs", value: "142", up: true },
-    { label: "New 52W Lows", value: "18", up: false },
-    { label: "NIFTY OI PCR", value: "1.12 Neutral", up: true },
-    { label: "ATM IV (NIFTY)", value: "13.2%", up: null },
-    { label: "Max Pain (NIFTY)", value: "24,200", up: null },
+    { label: "NIFTY 50", value: niftyTicker ? `₹${niftyTicker.value} (${niftyTicker.change})` : "—", up: niftyTicker?.up ?? null },
+    { label: "BANKNIFTY", value: bankniftyTicker ? `₹${bankniftyTicker.value} (${bankniftyTicker.change})` : "—", up: bankniftyTicker?.up ?? null },
+    { label: "NIFTY MIDCAP", value: midcapTicker ? `${midcapTicker.change}` : "—", up: midcapTicker?.up ?? null },
+    { label: "INDIA VIX", value: vixTicker ? `${vixTicker.value}` : "—", up: vixTicker ? !vixTicker.up : null },
+    { label: "Trend Score", value: data?.scores ? `${data.scores.trend}/100` : "—", up: (data?.scores?.trend ?? 0) >= 60 },
+    { label: "Momentum Score", value: data?.scores ? `${data.scores.momentum}/100` : "—", up: (data?.scores?.momentum ?? 0) >= 60 },
+    { label: "Breadth Score", value: data?.scores ? `${data.scores.breadth}/100` : "—", up: (data?.scores?.breadth ?? 0) >= 60 },
+    { label: "Overall Score", value: data?.decision ? `${data.decision.score}/100` : "—", up: (data?.decision?.score ?? 0) >= 60 },
   ];
 
   return (

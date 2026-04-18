@@ -1,33 +1,11 @@
-import { sectorPerformance } from "@/data/marketData";
+import { sectorPerformance as mockSectors } from "@/data/marketData";
+import type { SectorItem } from "@/hooks/useDashboard";
 
-interface SectorPerformanceProps {
-  liveData?: any;
-}
+interface Props { sectors?: SectorItem[] | null; }
 
-function parseLiveSectors(liveData: any): typeof sectorPerformance | null {
-  if (!liveData?.d) return null;
-  const symbolMap: Record<string, string> = {
-    "NSE:NIFTYIT-INDEX": "IT",
-    "NSE:NIFTYAUTO-INDEX": "Auto",
-    "NSE:NIFTYREALTY-INDEX": "Realty",
-    "NSE:NIFTYFINSERVICE-INDEX": "Fin Services",
-    "NSE:NIFTYFMCG-INDEX": "FMCG",
-    "NSE:NIFTYPHARMA-INDEX": "Pharma",
-    "NSE:NIFTYMETAL-INDEX": "Metals",
-  };
-  const result: typeof sectorPerformance = [];
-  for (const item of liveData.d) {
-    const name = symbolMap[item.n];
-    if (name && item.v?.chp !== undefined) {
-      result.push({ name, change: parseFloat(item.v.chp.toFixed(2)), strength: item.v.chp >= 1 ? "Strong" : item.v.chp >= 0 ? "Weak" : "Bearish" });
-    }
-  }
-  return result.length >= 3 ? result.sort((a, b) => b.change - a.change) : null;
-}
-
-export function SectorPerformance({ liveData }: SectorPerformanceProps) {
-  const sectors = parseLiveSectors(liveData) ?? sectorPerformance;
-  const max = Math.max(...sectors.map(s => Math.abs(s.change)));
+export function SectorPerformance({ sectors }: Props) {
+  const data = sectors ?? mockSectors;
+  const max = Math.max(...data.map(s => Math.abs(s.change)), 0.01);
 
   return (
     <div className="card-dark rounded p-3 flex flex-col gap-2">
@@ -36,7 +14,7 @@ export function SectorPerformance({ liveData }: SectorPerformanceProps) {
         <span className="section-header">Sector Performance</span>
       </div>
       <div className="flex flex-col gap-1.5">
-        {sectors.map((sector) => {
+        {data.map((sector) => {
           const pct = (Math.abs(sector.change) / max) * 100;
           const isPos = sector.change >= 0;
           return (
@@ -55,7 +33,7 @@ export function SectorPerformance({ liveData }: SectorPerformanceProps) {
                 />
               </div>
               <span
-                className="text-[10px] font-mono font-semibold w-12 text-right"
+                className="text-[10px] font-mono font-semibold w-14 text-right"
                 style={{ color: isPos ? "#00e676" : "#ff1744" }}
               >
                 {isPos ? "+" : ""}{sector.change.toFixed(2)}%

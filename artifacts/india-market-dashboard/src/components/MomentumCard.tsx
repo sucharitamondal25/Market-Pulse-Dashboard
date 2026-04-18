@@ -1,8 +1,13 @@
-import { momentumData } from "@/data/marketData";
 import { SentimentBadge } from "./SentimentBadge";
+import type { MomentumData } from "@/hooks/useDashboard";
+import { momentumData as mockMomentum } from "@/data/marketData";
 
-export function MomentumCard({ score }: { score: number }) {
+interface Props { data?: MomentumData | null; }
+
+export function MomentumCard({ data }: Props) {
+  const score = data?.score ?? 72;
   const color = score >= 70 ? "#00e676" : score >= 45 ? "#ffea00" : "#ff1744";
+  const items = data?.items ?? mockMomentum;
 
   return (
     <div className="card-dark rounded p-3 flex flex-col gap-2">
@@ -15,7 +20,7 @@ export function MomentumCard({ score }: { score: number }) {
       </div>
       <div className="h-px bg-border" />
       <div className="flex flex-col gap-2">
-        {momentumData.map((item) => (
+        {items.map((item) => (
           <div key={item.label} className="flex items-center justify-between gap-2">
             <span className="text-[10px] text-muted-foreground shrink-0">{item.label}</span>
             <div className="flex items-center gap-1.5 min-w-0">

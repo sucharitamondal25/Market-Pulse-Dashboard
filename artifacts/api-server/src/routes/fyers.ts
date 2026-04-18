@@ -12,6 +12,7 @@ import {
   NIFTY_SYMBOLS,
   TOP_STOCKS,
 } from "../lib/fyersData";
+import { computeDashboard } from "../lib/fyersCompute";
 
 const router: IRouter = Router();
 
@@ -190,6 +191,21 @@ router.get("/fyers/orders", async (req, res): Promise<void> => {
   } catch (err) {
     req.log.error({ err }, "Failed to fetch orders");
     res.status(500).json({ error: "Failed to fetch orders" });
+  }
+});
+
+router.get("/fyers/dashboard-data", async (req, res): Promise<void> => {
+  const token = getToken();
+  if (!token) {
+    res.status(401).json({ error: "Not authenticated" });
+    return;
+  }
+  try {
+    const data = await computeDashboard(token);
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Failed to compute dashboard data");
+    res.status(500).json({ error: "Failed to compute dashboard data" });
   }
 });
 

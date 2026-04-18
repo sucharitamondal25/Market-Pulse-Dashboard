@@ -1,53 +1,63 @@
-import { decisionData } from "@/data/marketData";
 import { ScoreRing } from "./ScoreRing";
 import { MiniScoreBar } from "./MiniScoreBar";
-import { scoringWeights } from "@/data/marketData";
+import type { DecisionData, ScoreData } from "@/hooks/useDashboard";
+import { decisionData as mockDecision, scoringWeights } from "@/data/marketData";
 
-export function DecisionPanel() {
-  const { decision, score, mode, positionSize, risk } = decisionData;
-  const isYes = decision === "YES";
+interface Props {
+  decision?: DecisionData | null;
+  scores?: ScoreData | null;
+}
+
+export function DecisionPanel({ decision, scores }: Props) {
+  const d = decision ?? mockDecision;
+  const s = scores;
+  const isYes = d.decision === "YES";
+  const isCaution = d.decision === "CAUTION";
+  const color = isYes ? "#00e676" : isCaution ? "#ffea00" : "#ff1744";
 
   return (
-    <div className="card-dark rounded p-4 flex flex-col gap-3 border-l-2" style={{ borderLeftColor: isYes ? "#00e676" : "#ff1744" }}>
+    <div className="card-dark rounded p-4 flex flex-col gap-3 border-l-2" style={{ borderLeftColor: color }}>
       <div className="flex items-center gap-4">
         <div className="flex flex-col gap-1">
           <span className="text-[9px] text-muted-foreground uppercase tracking-widest">Decision</span>
           <div
             className="px-4 py-2 rounded border-2 font-bold text-2xl font-mono"
             style={{
-              color: isYes ? "#00e676" : "#ff1744",
-              borderColor: isYes ? "#00e676" : "#ff1744",
-              background: isYes ? "rgba(0,230,118,0.08)" : "rgba(255,23,68,0.08)",
-              boxShadow: isYes ? "0 0 16px rgba(0,230,118,0.2)" : "0 0 16px rgba(255,23,68,0.2)",
-              textShadow: isYes ? "0 0 12px #00e676" : "0 0 12px #ff1744",
+              color,
+              borderColor: color,
+              background: isYes ? "rgba(0,230,118,0.08)" : isCaution ? "rgba(255,234,0,0.08)" : "rgba(255,23,68,0.08)",
+              boxShadow: `0 0 16px ${color}33`,
+              textShadow: `0 0 12px ${color}`,
             }}
           >
-            {decision}
+            {d.decision}
           </div>
-          <span className="text-[9px] text-muted-foreground">{mode}</span>
+          <span className="text-[9px] text-muted-foreground">{d.mode}</span>
         </div>
 
-        <ScoreRing score={score} size={72} strokeWidth={5} />
+        <ScoreRing score={d.score} size={72} strokeWidth={5} />
 
         <div className="flex flex-col gap-2 flex-1">
-          {scoringWeights.slice(0, 3).map((item) => (
-            <MiniScoreBar key={item.label} label={item.label} score={item.score} />
-          ))}
+          <MiniScoreBar label="Trend" score={s?.trend ?? scoringWeights[0].score} />
+          <MiniScoreBar label="Momentum" score={s?.momentum ?? scoringWeights[1].score} />
+          <MiniScoreBar label="Breadth" score={s?.breadth ?? scoringWeights[2].score} />
+        </div>
+
+        <div className="flex flex-col gap-2 flex-1">
+          <MiniScoreBar label="Volatility" score={s?.volatility ?? scoringWeights[3].score} />
+          <MiniScoreBar label="Macro" score={s?.macro ?? scoringWeights[4].score} />
+          <MiniScoreBar label="Execution" score={s?.execution ?? 76} />
         </div>
 
         <div className="ml-auto flex flex-col items-end gap-1">
           <span className="text-[9px] text-muted-foreground uppercase tracking-widest">Position Size</span>
           <div
             className="text-sm font-bold font-mono px-2 py-1 rounded"
-            style={{
-              color: "#00e676",
-              background: "rgba(0,230,118,0.1)",
-              border: "1px solid rgba(0,230,118,0.3)",
-            }}
+            style={{ color, background: `${color}18`, border: `1px solid ${color}40` }}
           >
-            {positionSize}
+            {d.positionSize}
           </div>
-          <span className="text-[9px] text-muted-foreground italic">{risk}</span>
+          <span className="text-[9px] text-muted-foreground italic">{d.risk}</span>
         </div>
       </div>
     </div>

@@ -1,6 +1,11 @@
-import { topStocks } from "@/data/marketData";
+import { topStocks as mockStocks } from "@/data/marketData";
+import type { StockItem } from "@/hooks/useDashboard";
 
-export function TopStocks() {
+interface Props { stocks?: StockItem[] | null; }
+
+export function TopStocks({ stocks }: Props) {
+  const data = stocks ?? mockStocks;
+
   return (
     <div className="card-dark rounded p-3 flex flex-col gap-2">
       <div className="flex items-center gap-1.5 mb-1">
@@ -8,7 +13,7 @@ export function TopStocks() {
         <span className="section-header">Top Movers</span>
       </div>
       <div className="flex flex-col gap-1.5">
-        {topStocks.map((stock) => (
+        {data.map((stock) => (
           <div key={stock.symbol} className="flex items-center justify-between py-1.5 px-2 rounded" style={{ background: "hsl(220,13%,13%)" }}>
             <div className="flex flex-col">
               <span className="text-[11px] font-mono font-bold text-foreground">{stock.symbol}</span>

@@ -1,8 +1,13 @@
-import { trendData } from "@/data/marketData";
 import { SentimentBadge } from "./SentimentBadge";
+import type { TrendData } from "@/hooks/useDashboard";
+import { trendData as mockTrend } from "@/data/marketData";
 
-export function TrendCard({ score }: { score: number }) {
+interface Props { data?: TrendData | null; }
+
+export function TrendCard({ data }: Props) {
+  const score = data?.score ?? 88;
   const color = score >= 70 ? "#00e676" : score >= 45 ? "#ffea00" : "#ff1744";
+  const items = data?.items ?? mockTrend;
 
   return (
     <div className="card-dark rounded p-3 flex flex-col gap-2">
@@ -15,7 +20,7 @@ export function TrendCard({ score }: { score: number }) {
       </div>
       <div className="h-px bg-border" />
       <div className="flex flex-col gap-2">
-        {trendData.map((item) => (
+        {items.map((item) => (
           <div key={item.label} className="flex items-center justify-between">
             <span className="text-[10px] text-muted-foreground">{item.label}</span>
             <div className="flex items-center gap-1.5">

@@ -29,6 +29,23 @@ export async function getMarketDepth(token: string, symbol: string): Promise<any
   return fyersGet(`${FYERS_API_BASE}/depth`, token, { symbol, ohlcv_flag: "1" });
 }
 
+export async function getHistoricalData(
+  token: string,
+  symbol: string,
+  resolution: string,
+  dateFrom: number,
+  dateTo: number
+): Promise<any> {
+  return fyersGet(`${FYERS_API_BASE}/history`, token, {
+    symbol,
+    resolution,
+    date_format: "1",
+    range_from: String(dateFrom),
+    range_to: String(dateTo),
+    cont_flag: "1",
+  });
+}
+
 export async function getFunds(token: string): Promise<any> {
   return fyersGet(`${FYERS_API_V3}/funds`, token);
 }
@@ -52,25 +69,6 @@ export async function getUserProfile(token: string): Promise<any> {
 export async function getMarketStatus(token: string): Promise<any> {
   return fyersGet(`${FYERS_API_V3}/market-status`, token);
 }
-
-export async function getHistoricalData(
-  token: string,
-  symbol: string,
-  resolution: string,
-  dateFrom: number,
-  dateTo: number
-): Promise<any> {
-  return fyersGet(`${FYERS_API_DATA_V3}/history`, token, {
-    symbol,
-    resolution,
-    date_format: "1",
-    range_from: String(dateFrom),
-    range_to: String(dateTo),
-    cont_flag: "1",
-  });
-}
-
-const FYERS_API_DATA_V3 = "https://api-t1.fyers.in/data";
 
 export const NIFTY_SYMBOLS = [
   "NSE:NIFTY50-INDEX",
