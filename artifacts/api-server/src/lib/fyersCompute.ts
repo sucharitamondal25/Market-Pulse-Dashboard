@@ -1,4 +1,5 @@
 import { getQuotes, getHistoricalData, NIFTY_SYMBOLS, TOP_STOCKS } from "./fyersData";
+import { ohlcvGet, ohlcvUpsert, ohlcvLatestTs, snapshotSave } from "./db";
 
 const INDIA_VIX = "NSE:INDIAVIX-INDEX";
 const NIFTY = "NSE:NIFTY50-INDEX";
@@ -164,22 +165,42 @@ const INDEX_LABEL: Record<string, string> = {
   "NSE:INDIAVIX-INDEX": "INDIA VIX",
 };
 
+async function getCachedOHLCV(token: string, symbol: string, resolution: string, daysBack: number): Promise<number[][]> {
+  const now = Math.floor(Date.now() / 1000);
+  const wantFrom = now - daysBack * 86400;
+  const latestCached = ohlcvLatestTs(symbol, resolution);
+  const todayStart = Math.floor(Date.now() / 86400000) * 86400;
+
+  if (!latestCached || latestCached < todayStart - 86400) {
+    const fetchFrom = latestCached ? latestCached : wantFrom;
+    const raw = await getHistoricalData(token, symbol, resolution, fetchFrom, now);
+    const candles: Array<[number, number, number, number, number, number]> = (raw?.candles ?? []).map(
+      (c: any[]) => [c[0], c[1], c[2], c[3], c[4], c[5]] as [number, number, number, number, number, number]
+    );
+    if (candles.length > 0) {
+      ohlcvUpsert(symbol, resolution, candles);
+    }
+  }
+  return ohlcvGet(symbol, resolution, wantFrom, now) as any[];
+}
+
 export async function computeDashboard(token: string): Promise<DashboardData> {
   const now = Math.floor(Date.now() / 1000);
-  const daySeconds = 86400;
-  const histFrom = now - 210 * daySeconds;
 
   const allSymbols = [...NIFTY_SYMBOLS, ...TOP_STOCKS, INDIA_VIX];
 
-  const [quotesRaw, niftyHistory] = await Promise.all([
+  const [quotesRaw, niftyCandles] = await Promise.all([
     getQuotes(token, allSymbols),
-    getHistoricalData(token, NIFTY, "D", histFrom, now),
+    getCachedOHLCV(token, NIFTY, "D", 210),
   ]);
+
+  const niftyHistory = { candles: niftyCandles };
 
   const quoteMap: Record<string, any> = {};
   if (quotesRaw?.d) {
     for (const item of quotesRaw.d) {
       quoteMap[item.n] = item.v;
+      try { snapshotSave(item.n, item.v); } catch { /* non-blocking */ }
     }
   }
 

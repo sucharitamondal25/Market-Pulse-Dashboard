@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+pnpm workspace monorepo using TypeScript. Indian stock market sentiment & trading terminal built on the Fyers API.
 
 ## Stack
 
@@ -11,25 +11,52 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
 - **API framework**: Express 5
-- **Database**: PostgreSQL + Drizzle ORM
-- **Validation**: Zod (`zod/v4`), `drizzle-zod`
-- **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **Database**: SQLite (`better-sqlite3`) — file at `artifacts/api-server/data/market.db`, WAL mode
+- **Build**: esbuild (ESM bundle)
 
 ## Artifacts
 
-- **india-market-dashboard** — React + Vite dark-themed sentiment dashboard at `/`
-  - Mock data fallback when Fyers is not connected
-  - Fyers OAuth login via `/api/fyers/auth` → `/api/fyers/callback`
-  - Live endpoints: `/api/fyers/indices`, `/api/fyers/quotes`, `/api/fyers/positions`, `/api/fyers/funds`
-  - Secrets required: `FYERS_APP_ID`, `FYERS_SECRET_KEY`
+- **api-server** — Express 5 backend at port 8080, mounted under `/api`
+  - Fyers OAuth: `GET /api/fyers/auth`, `GET /api/fyers/callback`
+  - Dashboard data: `GET /api/fyers/dashboard-data` (unified compute endpoint)
+  - Market data: quotes, positions, funds, orders, holdings via Fyers API
+  - Alerts CRUD: `/api/alerts`
+  - Watchlist CRUD: `/api/watchlist`
+  - Orders log: `GET /api/orders`
+  - Backtests: `GET /api/backtests`, `GET /api/backtests/:id`
+  - DB stats: `GET /api/db/stats`
+  - Secrets: `FYERS_APP_ID`, `FYERS_SECRET_KEY`, `SESSION_SECRET`
+
+- **india-market-dashboard** — React + Vite dark terminal aesthetic at `/`
+  - Dark theme: neon #00e676 green, #ff1744 red, #ffea00 yellow, #40c4ff blue
+  - Shows mock data when unauthenticated, live Fyers data when logged in
+  - Auto-refreshes every 30s; all 5 analysis cards + decision panel powered by `/api/fyers/dashboard-data`
+  - Components: TickerBar, DecisionPanel, VolatilityCard, TrendCard, BreadthCard, MomentumCard, MacroCard, ExecutionWindow, SectorPerformance, ScoringWeights, TopStocks, AlertsFeed
+
+## SQLite Schema (data/market.db)
+
+| Table              | Purpose                                    |
+| ------------------ | ------------------------------------------ |
+| `tokens`           | Persisted Fyers access token (survives restart) |
+| `ohlcv_cache`      | Cached daily OHLCV candles (reduces Fyers API calls) |
+| `quote_snapshots`  | Live quote snapshots saved on each dashboard fetch |
+| `watchlist`        | User's watchlist of symbols               |
+| `screener_criteria`| Saved screener configurations             |
+| `screener_results` | Screener match results                    |
+| `backtest_runs`    | Backtest run metadata + results           |
+| `backtest_trades`  | Individual trades from backtest runs      |
+| `alerts`           | Price/indicator alerts                    |
+| `orders`           | Order history (live + paper)              |
+
+## Key Backend Files
+
+- `src/lib/db.ts` — SQLite setup, schema migration, typed helper functions
+- `src/lib/fyersCompute.ts` — Dashboard scoring engine with OHLCV cache
+- `src/lib/fyersData.ts` — Fyers API wrappers (quotes, history, funds, etc.)
+- `src/lib/fyersAuth.ts` — OAuth flow
+- `src/routes/fyers.ts` — All API routes
 
 ## Key Commands
 
+- `pnpm --filter @workspace/api-server run dev` — run API server (build + start)
 - `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- `pnpm --filter @workspace/api-server run dev` — run API server locally
-
-See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details.

@@ -13,24 +13,33 @@ import {
   TOP_STOCKS,
 } from "../lib/fyersData";
 import { computeDashboard } from "../lib/fyersCompute";
+import {
+  tokenGet,
+  tokenSave,
+  alertsList,
+  alertCreate,
+  watchlistGet,
+  watchlistAdd,
+  watchlistRemove,
+  ordersList,
+  backtestList,
+  backtestGet,
+  db,
+} from "../lib/db";
 
 const router: IRouter = Router();
 
-const tokenStore: { token: string | null; expiresAt: number } = {
-  token: null,
-  expiresAt: 0,
-};
-
 function getToken(): string | null {
-  if (tokenStore.token && Date.now() < tokenStore.expiresAt) {
-    return tokenStore.token;
+  const stored = tokenGet();
+  if (stored && Date.now() < stored.expiresAt) {
+    return stored.token;
   }
   return null;
 }
 
 function setToken(token: string): void {
-  tokenStore.token = token;
-  tokenStore.expiresAt = Date.now() + 23 * 60 * 60 * 1000;
+  const expiresAt = Date.now() + 23 * 60 * 60 * 1000;
+  tokenSave(token, expiresAt);
 }
 
 router.get("/fyers/auth", async (req, res): Promise<void> => {
@@ -207,6 +216,70 @@ router.get("/fyers/dashboard-data", async (req, res): Promise<void> => {
     req.log.error({ err }, "Failed to compute dashboard data");
     res.status(500).json({ error: "Failed to compute dashboard data" });
   }
+});
+
+router.get("/alerts", (_req, res): void => {
+  res.json(alertsList());
+});
+
+router.post("/alerts", (req, res): void => {
+  const { symbol, type, condition, value, message } = req.body as any;
+  if (!symbol || !type || !condition || value == null) {
+    res.status(400).json({ error: "symbol, type, condition, value required" });
+    return;
+  }
+  const id = alertCreate({ symbol, type, condition, value, message });
+  res.status(201).json({ id });
+});
+
+router.delete("/alerts/:id", (req, res): void => {
+  db.prepare("DELETE FROM alerts WHERE id = ?").run(Number(req.params.id));
+  res.json({ ok: true });
+});
+
+router.get("/watchlist", (_req, res): void => {
+  res.json(watchlistGet());
+});
+
+router.post("/watchlist", (req, res): void => {
+  const { symbol, name, sector } = req.body as any;
+  if (!symbol) { res.status(400).json({ error: "symbol required" }); return; }
+  watchlistAdd(symbol, name, sector);
+  res.status(201).json({ ok: true });
+});
+
+router.delete("/watchlist/:symbol", (req, res): void => {
+  watchlistRemove(req.params.symbol);
+  res.json({ ok: true });
+});
+
+router.get("/orders", (_req, res): void => {
+  res.json(ordersList(100));
+});
+
+router.get("/backtests", (_req, res): void => {
+  res.json(backtestList());
+});
+
+router.get("/backtests/:id", (req, res): void => {
+  const run = backtestGet(Number(req.params.id));
+  if (!run) { res.status(404).json({ error: "Not found" }); return; }
+  if (run.result) {
+    try { run.result = JSON.parse(run.result); } catch { /* leave as string */ }
+  }
+  const trades = db.prepare("SELECT * FROM backtest_trades WHERE run_id = ? ORDER BY entry_ts ASC").all(Number(req.params.id));
+  res.json({ ...run, trades });
+});
+
+router.get("/db/stats", (_req, res): void => {
+  const tables = ["tokens", "ohlcv_cache", "watchlist", "screener_criteria", "screener_results", "backtest_runs", "backtest_trades", "alerts", "orders", "quote_snapshots"];
+  const stats: Record<string, number> = {};
+  for (const t of tables) {
+    const row = db.prepare(`SELECT COUNT(*) as c FROM ${t}`).get() as { c: number };
+    stats[t] = row.c;
+  }
+  const dbSize = db.prepare("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()").get() as { size: number };
+  res.json({ tables: stats, dbSizeBytes: dbSize.size, dbPath: "data/market.db" });
 });
 
 export default router;
