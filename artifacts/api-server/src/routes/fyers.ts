@@ -9,8 +9,13 @@ import {
   getOrders,
   getUserProfile,
   getMarketStatus,
+  getOptionChain,
+  getMarketDepth,
+  getHistoricalData,
   NIFTY_SYMBOLS,
   TOP_STOCKS,
+  NIFTY50_COMPONENTS,
+  NIFTY_INDEX,
 } from "../lib/fyersData";
 import { computeDashboard } from "../lib/fyersCompute";
 import {
@@ -211,6 +216,76 @@ router.get("/fyers/orders", async (req, res): Promise<void> => {
     req.log.error({ err }, "Failed to fetch orders");
     res.status(500).json({ error: "Failed to fetch orders" });
   }
+});
+
+router.get("/fyers/option-chain", async (req, res): Promise<void> => {
+  const token = getToken();
+  if (!token) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const symbol = (req.query.symbol as string) || NIFTY_INDEX;
+  const strikes = Number(req.query.strikes ?? 10);
+  try {
+    const data = await getOptionChain(token, symbol, strikes);
+    res.json(data);
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch option chain");
+    res.status(500).json({ error: "Failed to fetch option chain" });
+  }
+});
+
+router.get("/fyers/depth", async (req, res): Promise<void> => {
+  const token = getToken();
+  if (!token) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const symbol = req.query.symbol as string;
+  if (!symbol) { res.status(400).json({ error: "symbol required" }); return; }
+  try {
+    res.json(await getMarketDepth(token, symbol));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch depth");
+    res.status(500).json({ error: "Failed to fetch depth" });
+  }
+});
+
+router.get("/fyers/history", async (req, res): Promise<void> => {
+  const token = getToken();
+  if (!token) { res.status(401).json({ error: "Not authenticated" }); return; }
+  const symbol = req.query.symbol as string;
+  const resolution = (req.query.resolution as string) || "D";
+  const days = Number(req.query.days ?? 60);
+  if (!symbol) { res.status(400).json({ error: "symbol required" }); return; }
+  const now = Math.floor(Date.now() / 1000);
+  const from = now - days * 86400;
+  try {
+    res.json(await getHistoricalData(token, symbol, resolution, from, now));
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch history");
+    res.status(500).json({ error: "Failed to fetch history" });
+  }
+});
+
+router.get("/fyers/account", async (req, res): Promise<void> => {
+  const token = getToken();
+  if (!token) { res.status(401).json({ error: "Not authenticated" }); return; }
+  try {
+    const [profile, funds, positions, holdings, orders] = await Promise.all([
+      getUserProfile(token).catch((e) => ({ error: (e as Error).message })),
+      getFunds(token).catch((e) => ({ error: (e as Error).message })),
+      getPositions(token).catch((e) => ({ error: (e as Error).message })),
+      getHoldings(token).catch((e) => ({ error: (e as Error).message })),
+      getOrders(token).catch((e) => ({ error: (e as Error).message })),
+    ]);
+    res.json({ profile, funds, positions, holdings, orders });
+  } catch (err) {
+    req.log.error({ err }, "Failed to fetch account");
+    res.status(500).json({ error: "Failed to fetch account" });
+  }
+});
+
+router.get("/fyers/universe", (_req, res): void => {
+  res.json({
+    indices: NIFTY_SYMBOLS,
+    nifty50: NIFTY50_COMPONENTS,
+    topStocks: TOP_STOCKS,
+  });
 });
 
 router.get("/fyers/dashboard-data", async (req, res): Promise<void> => {

@@ -50,11 +50,15 @@ pnpm workspace monorepo using TypeScript. Indian stock market sentiment & tradin
 
 ## Key Backend Files
 
-- `src/lib/db.ts` — SQLite setup, schema migration, typed helper functions
-- `src/lib/fyersCompute.ts` — Dashboard scoring engine with OHLCV cache
-- `src/lib/fyersData.ts` — Fyers API wrappers (quotes, history, funds, etc.)
+- `src/lib/db.ts` — SQLite setup, schema migration, typed helper functions; `ohlcvGet` returns raw tuple arrays via `stmt.raw(true)`
+- `src/lib/fyersCompute.ts` — Dashboard scoring engine with OHLCV cache; `lastTradingDayStartTs()` decides cache freshness (skips refetch on weekends/holidays); concurrency-3 for OHLCV fetches; 360-day max range
+- `src/lib/fyersData.ts` — Fyers API wrappers; `fyersGet` retries 429s 2x with exponential backoff; `getQuotes` swallows per-batch errors so dashboard never 500s
 - `src/lib/fyersAuth.ts` — OAuth flow
-- `src/routes/fyers.ts` — All API routes
+- `src/routes/fyers.ts` — All API routes incl. `/option-chain`, `/depth`, `/history`, `/account`, `/universe`
+
+## Symbol notes (Fyers)
+- Bank Nifty index: `NSE:NIFTYBANK-INDEX` (NOT `BANKNIFTY-INDEX`)
+- Known invalid Fyers symbols on this account: `NSE:LTIM-EQ`, `NSE:TATAMOTORS-EQ` (return -300). Cache stays empty so they will retry — drop or replace if needed.
 
 ## Key Commands
 

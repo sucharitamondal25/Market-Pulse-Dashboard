@@ -185,11 +185,21 @@ export function ohlcvGet(
   from: number,
   to: number
 ): Array<[number, number, number, number, number, number]> {
-  return db
-    .prepare(
-      "SELECT ts, open, high, low, close, volume FROM ohlcv_cache WHERE symbol = ? AND resolution = ? AND ts >= ? AND ts <= ? ORDER BY ts ASC"
-    )
-    .all(symbol, resolution, from, to) as any;
+  const stmt = db.prepare(
+    "SELECT ts, open, high, low, close, volume FROM ohlcv_cache WHERE symbol = ? AND resolution = ? AND ts >= ? AND ts <= ? ORDER BY ts ASC"
+  );
+  // raw() returns rows as plain arrays (tuples), matching Fyers /history candle shape
+  stmt.raw(true);
+  return stmt.all(symbol, resolution, from, to) as Array<
+    [number, number, number, number, number, number]
+  >;
+}
+
+export function ohlcvOldestTs(symbol: string, resolution: string): number | null {
+  const row = db
+    .prepare("SELECT MIN(ts) as oldest FROM ohlcv_cache WHERE symbol = ? AND resolution = ?")
+    .get(symbol, resolution) as { oldest: number | null } | undefined;
+  return row?.oldest ?? null;
 }
 
 export function ohlcvLatestTs(symbol: string, resolution: string): number | null {

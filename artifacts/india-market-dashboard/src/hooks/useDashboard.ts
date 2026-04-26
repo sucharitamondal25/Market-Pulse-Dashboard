@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const API = `${BASE}/api/fyers`;
+// API server is mounted at root (/api/...) by the workspace proxy.
+// Do NOT prefix with import.meta.env.BASE_URL — that path is owned by this
+// dashboard's Vite dev server, which would return its index.html for /api/*.
+const API = "/api/fyers";
 
 export interface DashboardData {
   ticker: TickerItem[];
