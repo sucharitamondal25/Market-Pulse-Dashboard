@@ -3,9 +3,12 @@ import { useState, useEffect } from "react";
 interface HeaderProps {
   authenticated?: boolean | null;
   onLogin?: () => void;
+  onLogout?: () => void;
+  lastUpdated?: Date | null;
+  loading?: boolean;
 }
 
-export function Header({ authenticated, onLogin }: HeaderProps) {
+export function Header({ authenticated, onLogin, onLogout, loading }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [isMarketOpen, setIsMarketOpen] = useState(false);
 
@@ -58,6 +61,25 @@ export function Header({ authenticated, onLogin }: HeaderProps) {
       </div>
 
       <div className="flex items-center gap-3">
+        {authenticated === true ? (
+          <button
+            onClick={onLogout}
+            className="text-[10px] px-2 py-1 rounded font-mono transition hover:opacity-80"
+            style={{ background: "rgba(0,230,118,0.12)", color: "#00e676", border: "1px solid rgba(0,230,118,0.3)" }}
+            title="Disconnect Fyers"
+          >
+            ● FYERS LIVE
+          </button>
+        ) : authenticated === false ? (
+          <button
+            onClick={onLogin}
+            className="text-[10px] px-2 py-1 rounded font-mono transition hover:opacity-80"
+            style={{ background: "rgba(255,145,0,0.12)", color: "#ff9100", border: "1px solid rgba(255,145,0,0.3)" }}
+          >
+            ○ FYERS OFFLINE
+          </button>
+        ) : null}
+
         <div className="flex items-center gap-1.5">
           <div className={`w-1.5 h-1.5 rounded-full ${isMarketOpen ? "bg-[#00e676] live-dot" : "bg-[#ff1744]"}`} />
           <span className="text-[10px] font-mono" style={{ color: isMarketOpen ? "#00e676" : "#ff1744" }}>
@@ -68,12 +90,9 @@ export function Header({ authenticated, onLogin }: HeaderProps) {
           <span className="text-[11px] font-mono font-bold text-foreground">{istTime} IST</span>
           <span className="text-[9px] text-muted-foreground">{istDate}</span>
         </div>
-        <button className="text-[10px] px-2 py-1 rounded font-mono" style={{ background: "hsl(220,13%,14%)", color: "hsl(220,10%,55%)", border: "1px solid hsl(220,10%,20%)" }}>
-          SWING
-        </button>
-        <button className="text-[10px] px-2 py-1 rounded font-mono" style={{ background: "hsl(220,13%,14%)", color: "hsl(220,10%,55%)", border: "1px solid hsl(220,10%,20%)" }}>
-          DAY
-        </button>
+        {loading && (
+          <span className="text-[9px] font-mono" style={{ color: "#40c4ff" }}>● SYNCING</span>
+        )}
       </div>
     </header>
   );

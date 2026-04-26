@@ -89,14 +89,18 @@ export interface DecisionData {
 
 export function useFyersAuth() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
+  const [authPending, setAuthPending] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const checkStatus = useCallback(async () => {
     try {
       const r = await fetch(`${API}/status`);
       const d = await r.json() as { authenticated: boolean };
       setAuthenticated(d.authenticated);
+      return d.authenticated;
     } catch {
       setAuthenticated(false);
+      return false;
     }
   }, []);
 
@@ -106,16 +110,78 @@ export function useFyersAuth() {
     if (params.get("fyers_auth") === "success") {
       setAuthenticated(true);
       window.history.replaceState({}, "", window.location.pathname);
+    } else if (params.get("fyers_auth") === "error") {
+      setAuthError("Fyers authentication failed. Please try again.");
+      window.history.replaceState({}, "", window.location.pathname);
     }
   }, [checkStatus]);
 
   const login = async () => {
-    const r = await fetch(`${API}/auth`);
-    const d = await r.json() as { url: string };
-    window.location.href = d.url;
+    setAuthError(null);
+    setAuthPending(true);
+    try {
+      const r = await fetch(`${API}/auth`);
+      const d = await r.json() as { url: string };
+
+      const w = 600, h = 750;
+      const left = window.screen.width / 2 - w / 2;
+      const top = window.screen.height / 2 - h / 2;
+      const popup = window.open(
+        d.url,
+        "fyers_oauth",
+        `width=${w},height=${h},left=${left},top=${top},scrollbars=yes,resizable=yes`
+      );
+
+      if (!popup || popup.closed) {
+        try {
+          if (window.top) {
+            (window.top as Window).location.href = d.url;
+            return;
+          }
+        } catch {
+          // cross-origin — fall through
+        }
+        setAuthError("Popup blocked. Please allow popups, or open this dashboard in a new tab.");
+        setAuthPending(false);
+        return;
+      }
+
+      const interval = setInterval(async () => {
+        if (popup.closed) {
+          clearInterval(interval);
+          const ok = await checkStatus();
+          setAuthPending(false);
+          if (!ok) setAuthError("Login was cancelled or did not complete.");
+          return;
+        }
+        const ok = await checkStatus();
+        if (ok) {
+          clearInterval(interval);
+          try { popup.close(); } catch { /* ignored */ }
+          setAuthPending(false);
+        }
+      }, 1500);
+
+      setTimeout(() => {
+        clearInterval(interval);
+        setAuthPending(false);
+      }, 5 * 60 * 1000);
+    } catch (e: any) {
+      setAuthError(e.message ?? "Failed to start login");
+      setAuthPending(false);
+    }
   };
 
-  return { authenticated, login };
+  const logout = async () => {
+    try {
+      await fetch(`${API}/logout`, { method: "POST" });
+      setAuthenticated(false);
+    } catch {
+      /* ignored */
+    }
+  };
+
+  return { authenticated, login, logout, authPending, authError };
 }
 
 export function useDashboard(authenticated: boolean | null) {

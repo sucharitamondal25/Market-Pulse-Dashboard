@@ -80,6 +80,16 @@ router.get("/fyers/status", async (req, res): Promise<void> => {
   res.json({ authenticated: !!token });
 });
 
+router.post("/fyers/logout", async (req, res): Promise<void> => {
+  try {
+    db.prepare("DELETE FROM tokens WHERE id = 1").run();
+    res.json({ ok: true });
+  } catch (err) {
+    req.log.error({ err }, "Logout failed");
+    res.status(500).json({ error: "Logout failed" });
+  }
+});
+
 router.get("/fyers/profile", async (req, res): Promise<void> => {
   const token = getToken();
   if (!token) {
