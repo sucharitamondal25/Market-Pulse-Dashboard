@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 
 interface HeaderProps {
   authenticated?: boolean | null;
-  onLogin?: () => void;
+  authUrl?: string | null;
+  onStartLogin?: () => void;
   onLogout?: () => void;
   lastUpdated?: Date | null;
   loading?: boolean;
 }
 
-export function Header({ authenticated, onLogin, onLogout, loading }: HeaderProps) {
+export function Header({ authenticated, authUrl, onStartLogin, onLogout, loading }: HeaderProps) {
   const [time, setTime] = useState(new Date());
   const [isMarketOpen, setIsMarketOpen] = useState(false);
 
@@ -70,14 +71,17 @@ export function Header({ authenticated, onLogin, onLogout, loading }: HeaderProp
           >
             ● FYERS LIVE
           </button>
-        ) : authenticated === false ? (
-          <button
-            onClick={onLogin}
-            className="text-[10px] px-2 py-1 rounded font-mono transition hover:opacity-80"
-            style={{ background: "rgba(255,145,0,0.12)", color: "#ff9100", border: "1px solid rgba(255,145,0,0.3)" }}
+        ) : authenticated === false && authUrl ? (
+          <a
+            href={authUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onStartLogin}
+            className="text-[10px] px-2 py-1 rounded font-mono transition hover:opacity-80 inline-block"
+            style={{ background: "rgba(255,145,0,0.12)", color: "#ff9100", border: "1px solid rgba(255,145,0,0.3)", textDecoration: "none" }}
           >
-            ○ FYERS OFFLINE
-          </button>
+            ○ CONNECT FYERS ↗
+          </a>
         ) : null}
 
         <div className="flex items-center gap-1.5">

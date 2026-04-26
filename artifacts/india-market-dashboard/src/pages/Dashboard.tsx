@@ -15,17 +15,33 @@ import { FyersAuthBanner } from "@/components/FyersAuthBanner";
 import { useFyersAuth, useDashboard } from "@/hooks/useDashboard";
 
 export default function Dashboard() {
-  const { authenticated, login, logout, authPending, authError } = useFyersAuth();
+  const {
+    authenticated,
+    authUrl,
+    authPending,
+    authError,
+    startPolling,
+    cancelLogin,
+    checkNow,
+    logout,
+  } = useFyersAuth();
   const { data, loading, lastUpdated } = useDashboard(authenticated);
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "hsl(220,13%,9%)", fontFamily: "'Inter', monospace" }}>
-      <Header authenticated={authenticated} onLogin={login} onLogout={logout} lastUpdated={lastUpdated} loading={loading} />
+      <Header authenticated={authenticated} authUrl={authUrl} onStartLogin={startPolling} onLogout={logout} lastUpdated={lastUpdated} loading={loading} />
       <TickerBar ticker={data?.ticker} />
 
       <main className="flex-1 p-3 flex flex-col gap-3 overflow-auto">
         {authenticated === false && (
-          <FyersAuthBanner onLogin={login} pending={authPending} error={authError} />
+          <FyersAuthBanner
+            authUrl={authUrl}
+            pending={authPending}
+            error={authError}
+            onStartLogin={startPolling}
+            onCheckNow={checkNow}
+            onCancel={cancelLogin}
+          />
         )}
         {authenticated === true && data && (
           <div

@@ -91,10 +91,12 @@ export function useFyersAuth() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null);
   const [authPending, setAuthPending] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authUrl, setAuthUrl] = useState<string | null>(null);
+  const pollRef = useRef<number | null>(null);
 
   const checkStatus = useCallback(async () => {
     try {
-      const r = await fetch(`${API}/status`);
+      const r = await fetch(`${API}/status`, { cache: "no-store" });
       const d = await r.json() as { authenticated: boolean };
       setAuthenticated(d.authenticated);
       return d.authenticated;
@@ -104,8 +106,19 @@ export function useFyersAuth() {
     }
   }, []);
 
+  const refreshAuthUrl = useCallback(async () => {
+    try {
+      const r = await fetch(`${API}/auth`, { cache: "no-store" });
+      const d = await r.json() as { url: string };
+      setAuthUrl(d.url);
+    } catch {
+      setAuthUrl(null);
+    }
+  }, []);
+
   useEffect(() => {
     checkStatus();
+    refreshAuthUrl();
     const params = new URLSearchParams(window.location.search);
     if (params.get("fyers_auth") === "success") {
       setAuthenticated(true);
@@ -114,74 +127,78 @@ export function useFyersAuth() {
       setAuthError("Fyers authentication failed. Please try again.");
       window.history.replaceState({}, "", window.location.pathname);
     }
-  }, [checkStatus]);
+  }, [checkStatus, refreshAuthUrl]);
 
-  const login = async () => {
+  const stopPolling = useCallback(() => {
+    if (pollRef.current !== null) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  const startPolling = useCallback(() => {
     setAuthError(null);
     setAuthPending(true);
-    try {
-      const r = await fetch(`${API}/auth`);
-      const d = await r.json() as { url: string };
-
-      const w = 600, h = 750;
-      const left = window.screen.width / 2 - w / 2;
-      const top = window.screen.height / 2 - h / 2;
-      const popup = window.open(
-        d.url,
-        "fyers_oauth",
-        `width=${w},height=${h},left=${left},top=${top},scrollbars=yes,resizable=yes`
-      );
-
-      if (!popup || popup.closed) {
-        try {
-          if (window.top) {
-            (window.top as Window).location.href = d.url;
-            return;
-          }
-        } catch {
-          // cross-origin — fall through
-        }
-        setAuthError("Popup blocked. Please allow popups, or open this dashboard in a new tab.");
+    stopPolling();
+    const startedAt = Date.now();
+    pollRef.current = window.setInterval(async () => {
+      const ok = await checkStatus();
+      if (ok) {
+        stopPolling();
         setAuthPending(false);
         return;
       }
-
-      const interval = setInterval(async () => {
-        if (popup.closed) {
-          clearInterval(interval);
-          const ok = await checkStatus();
-          setAuthPending(false);
-          if (!ok) setAuthError("Login was cancelled or did not complete.");
-          return;
-        }
-        const ok = await checkStatus();
-        if (ok) {
-          clearInterval(interval);
-          try { popup.close(); } catch { /* ignored */ }
-          setAuthPending(false);
-        }
-      }, 1500);
-
-      setTimeout(() => {
-        clearInterval(interval);
+      if (Date.now() - startedAt > 5 * 60 * 1000) {
+        stopPolling();
         setAuthPending(false);
-      }, 5 * 60 * 1000);
-    } catch (e: any) {
-      setAuthError(e.message ?? "Failed to start login");
+        setAuthError("Login timed out after 5 minutes. Please try again.");
+      }
+    }, 2000);
+  }, [checkStatus, stopPolling]);
+
+  const cancelLogin = useCallback(() => {
+    stopPolling();
+    setAuthPending(false);
+    setAuthError(null);
+  }, [stopPolling]);
+
+  const checkNow = useCallback(async () => {
+    setAuthError(null);
+    const ok = await checkStatus();
+    if (ok) {
+      stopPolling();
       setAuthPending(false);
+    } else {
+      setAuthError("Not connected yet. Make sure you completed the Fyers login in the new tab.");
     }
-  };
+    return ok;
+  }, [checkStatus, stopPolling]);
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, [stopPolling]);
 
   const logout = async () => {
     try {
       await fetch(`${API}/logout`, { method: "POST" });
       setAuthenticated(false);
+      await refreshAuthUrl();
     } catch {
       /* ignored */
     }
   };
 
-  return { authenticated, login, logout, authPending, authError };
+  return {
+    authenticated,
+    authUrl,
+    authPending,
+    authError,
+    startPolling,
+    cancelLogin,
+    checkNow,
+    logout,
+    refreshAuthUrl,
+  };
 }
 
 export function useDashboard(authenticated: boolean | null) {
